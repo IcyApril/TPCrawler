@@ -28,22 +28,22 @@ Download and upload the files from the link above. Alternatively WGET and upload
 
 B) MySQL:
 You will need to edit the “connect.php” file to include your MySQL details:
-`
-<?php
-/* Database config */
 
-$db_host        = 'localhost'; // In most cases you should leave this alone.
-$db_user        = 'root'; // MySQL username.
-$db_pass        = ''; // MySQL password.
-$db_database    = 'tpcrawler'; // MySQL database name.
+	<?php
+	/* Database config */
+	
+	$db_host        = 'localhost'; // In most cases you should leave this alone.
+	$db_user        = 'root'; // MySQL username.
+	$db_pass        = ''; // MySQL password.
+	$db_database    = 'tpcrawler'; // MySQL database name.
+	
+	/* End config */
 
-/* End config */
+	$link = mysql_connect($db_host,$db_user,$db_pass) or die('Unable to establish a DB connection');
 
-$link = mysql_connect($db_host,$db_user,$db_pass) or die('Unable to establish a DB connection');
+	mysql_select_db($db_database,$link);
+	mysql_query("SET NAMES UTF8");/* Database config */
 
-mysql_select_db($db_database,$link);
-mysql_query("SET NAMES UTF8");/* Database config */
-`
 C) Simply open your web browser and go to www.yourdomain.com/tpcrawlerdirectory/crawler.php; changing the directory and domain name to your choosing.
 
 To run the mirroring, even when no one is connected to the site, on a Linux server run this command: php /directory/to/crawler.php | /dev/null &
