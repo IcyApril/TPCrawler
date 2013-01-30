@@ -46,7 +46,7 @@ function get_pre($url)
  @$dom->loadHTML($html); 
  //discard white space 
  $dom->preserveWhiteSpace = false; 
- $pre = $dom->getElementsByTagName('pre'); // here u use your desired tag
+ $pre = $dom->getElementsByTagName('pre'); //Get elements by desired tag.
  return htmlspecialchars($pre->item(0)->nodeValue); 
 
 }
