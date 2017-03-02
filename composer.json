@@ -1,0 +1,16 @@
+{
+  "name": "icyapril/tpcrawler",
+  "description": "An open-source PHP tool to mirror torrents from ThePirateBay autonomously.",
+  "license": "CC BY-NC-SA",
+  "authors": [
+    {
+      "name": "IcyApril",
+      "email": "mjsa@junade.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "IcyApril\\TPCrawler\\": "src/"
+    }
+  }
+}
