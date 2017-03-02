@@ -4,6 +4,9 @@ require '../vendor/autoload.php';
 
 use IcyApril\TPCrawler;
 
+TPCrawler\App::init();
+TPCrawler\App::install();
+
 /*
 VERSION 0.4
 Licensed under the terms of CreativeCommons BY-NC-SA https://creativecommons.org/licenses/by-nc-sa/3.0/
@@ -15,29 +18,15 @@ This crawler can be run via command line in the background by using:-> php crawl
 */
 exec("/usr/bin/php crawler.php >/dev/null &");
 
-function trunc($phrase, $max_words)
-{
-    $phrase_array = explode(' ', $phrase);
-    if (count($phrase_array) > $max_words && $max_words > 0) {
-        $phrase = implode(' ', array_slice($phrase_array, 0, $max_words)) . '&hellip;';
-    }
-    return $phrase;
-}
-
-?>
-
-<link rel="stylesheet" href="../style.css" type="text/css" media="screen"/>
-
-<?php
-$search = htmlspecialchars(mysql_escape_string(($_GET['s'])));
-$id = htmlspecialchars(mysql_escape_string(($_GET['id'])));
-$page = htmlspecialchars(mysql_escape_string(($_GET['pages'])));
+$search = TPCrawler\Database::$db->escape_string($_GET['s']);
+$id = TPCrawler\Database::$db->escape_string($_GET['id']);
+$page = TPCrawler\Database::$db->escape_string($_GET['pages']);
 
 if ($page) {
     $realpage = $page - 1;
     $lowerbound = $realpage * 50;
-    $upperbound = $lowerbound + 100;
-    $nextpage = $page + 1;
+    $upperbound = (int)$lowerbound + 100;
+    $nextpage = (int)$page + 1;
 } else {
     $page = 1;
     $realpage = 0;
@@ -48,68 +37,99 @@ if ($page) {
 
 if ($id) {
     $trunc = false;
-    $quey1 = "SELECT * FROM magnets WHERE id='$id'";
+    $query = TPCrawler\Database::$db->prepare("SELECT * FROM magnets WHERE id = ?");
+    $query->bind_param('i', $id);
 } else {
+    $trunc = true;
     if ($search) {
-        $trunc = true;
-        $quey1 = "SELECT * FROM magnets WHERE url LIKE '%$search%' OR description LIKE '%$search%' OR magnet LIKE '%$search%'";
+        $query = TPCrawler\Database::$db->prepare("SELECT * FROM magnets WHERE url LIKE ? OR description LIKE ? OR magnet LIKE ?");
+        $query->bind_param('sss', $search, $search, $search);
     } else {
-        $trunc = true;
-        $quey1 = "SELECT * FROM magnets WHERE id BETWEEN $lowerbound AND $upperbound";
+        $query = TPCrawler\Database::$db->prepare("SELECT * FROM magnets WHERE id BETWEEN ? AND ?");
+        $query->bind_param('ii', $lowerbound, $upperbound);
     }
 }
 
-$pg1 = "SELECT COUNT(id) FROM magnets";
-$pgresult = mysql_query($pg1) or die(mysql_error());
-while ($row = mysql_fetch_array($pgresult)) {
-    $totpages = intval($row['COUNT(id)'] / 100 + 1);
+$query_count = TPCrawler\Database::$db->prepare("SELECT COUNT(id) FROM magnets");
+$totpages = 0;
+$query_count->execute() or die(TPCrawler\Database::$db->error);
+$query_count->bind_result($count);
+
+while ($query_count->fetch()) {
+    $totpages = intval($count / 100 + 1);
 }
 
 if (($page > $totpages) || ($page < 0)) {
     die('<p>No more pages. :(</p>');
 }
 
-$result = mysql_query($quey1) or die(mysql_error());
+$torrent = new stdClass();
+$query->bind_result($torrent->id, $torrent->url, $torrent->magnet, $torrent->description);
+$query->execute() or die(TPCrawler\Database::$db->error);
 ?>
-<center><h2>Browse Magnets</h2></center>
-<p><a href="index.php">Home</a></p>
-<form name="s" action="index.php" method="get">
-    <input type="search" name="s"/>
-    <input type="submit" value="Search"/>
-</form>
-<table cellpadding="0" cellspacing="0" class="db-table">
-    <tr>
-        <th>Source URL</th>
-        <th>Magnet URL</th>
-        <th>Description</th>
-        <th>More Info</th>
-    </tr>
-    <?php
-    while ($row = mysql_fetch_array($result)) {
-        echo "</td><td>";
-        echo '<a href="' . $row['url'] . '">Source</a>';
-        echo "</td><td>";
-        echo '<a href="' . $row['magnet'] . '">Download</a>';
-        echo "</td><td>";
-        if ($trunc == true) {
-            echo trunc($row['description'], 15);
-        } else {
-            echo nl2br($row['description']);
-        }
-        echo "</td><td>";
-        echo '<a href="index.php?id=' . $row['id'] . '">Info</a>';
-        echo "</td></tr>";
-    }
-    echo "</table>";
-    ?>
-    <?php if (!($id || $search)) { ?>
-        You are at page: <?= $page ?> of <?= $totpages ?> <a
-                href='index.php?pages=<?= $nextpage ?>'>Page: <?= $nextpage ?></a>
-    <?php } ?>
-    <form name="pages" action="index.php" method="get">
-        Go to page: <input type="text" name="pages"/>
-        <input type="submit" value="Go"/>
-    </form>
-    <hr/>
-    <p>Powered by <a href="http://junade.omgthatsepic.com/2012/05/05/tpcrawler/ ">TPCrawler</a>. Licensed under the
-        terms of <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CreativeCommons BY-NC-SA</a></p>
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="panel">
+        <div class="panel-group">
+            <h2>Browse Magnets</h2>
+            <p><a href="index.php">Home</a></p>
+            <form name="s" action="index.php" method="get">
+                <input title="Search" type="search" name="s"/>
+                <input type="submit" value="Search"/>
+            </form>
+        </div>
+        <div class="panel-group">
+            <table class="table">
+                <tr>
+                    <th>Source URL</th>
+                    <th>Magnet URL</th>
+                    <th>Description</th>
+                    <th>More Info</th>
+                </tr>
+                <?php while ($query->fetch()) { ?>
+                    <tr>
+                        <td>
+                            <a href="<?= $torrent->url ?>">Source</a>
+                        </td>
+                        <td>
+                            <a href="<?= $torrent->magnet ?>">Download</a>
+                        </td>
+                        <td>
+                            <?= ($trunc == true) ? TPCrawler\Content::truncate($torrent->description,
+                                15) : nl2br($torrent->description) ?>
+                        </td>
+                        <td>
+                            <a href="index.php?id=<?= $torrent->id ?>">Info</a>
+                        </td>
+                    </tr>
+                <?php } ?>
+            </table>
+        </div>
+        <div class="panel-group">
+            <?php if (!($id || $search)) { ?>
+                You are at page: <?= $page ?> of <?= $totpages ?> <a
+                        href='index.php?pages=<?= $nextpage ?>'>Page: <?= $nextpage ?></a>
+            <?php } ?>
+        </div>
+        <div class="panel-group">
+            <form name="pages" action="index.php" method="get">
+                Go to page: <input type="text" name="pages"/>
+                <input type="submit" value="Go"/>
+            </form>
+        </div>
+        <div class="panel-group">
+            <hr/>
+            <p>Powered by <a href="http://junade.omgthatsepic.com/2012/05/05/tpcrawler/ ">TPCrawler</a>. Licensed under
+                the
+                terms of <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CreativeCommons BY-NC-SA</a></p>
+        </div>
+    </div>
+</body>
+</html>
