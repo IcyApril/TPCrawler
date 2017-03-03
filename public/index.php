@@ -18,49 +18,43 @@ This crawler can be run via command line in the background by using:-> php crawl
 */
 exec("/usr/bin/php crawler.php >/dev/null &");
 
-$search = TPCrawler\Database::$db->escape_string($_GET['s']);
-$id = TPCrawler\Database::$db->escape_string($_GET['id']);
-$page = TPCrawler\Database::$db->escape_string($_GET['pages']);
+$search = isset($_GET['s']) ? TPCrawler\Database::$db->escape_string($_GET['s']) : false;
+$id = isset($_GET['id']) ? (int)TPCrawler\Database::$db->escape_string($_GET['id']) : false;
+$page = isset($_GET['pages']) ? (int)TPCrawler\Database::$db->escape_string($_GET['pages']) : false;
 
 if ($page) {
-    $realpage = $page - 1;
-    $lowerbound = $realpage * 50;
-    $upperbound = (int)$lowerbound + 100;
-    $nextpage = (int)$page + 1;
+    $realPage = $page - 1;
+    $lowerBound = $realPage * 50;
+    $upperBound = (int)$lowerBound + 100;
 } else {
     $page = 1;
-    $realpage = 0;
-    $lowerbound = 0;
-    $upperbound = 100;
-    $nextpage = $page + 1;
+    $realPage = 0;
+    $lowerBound = 0;
+    $upperBound = 100;
 }
 
 if ($id) {
-    $trunc = false;
+    $truncateString = false;
     $query = TPCrawler\Database::$db->prepare("SELECT * FROM magnets WHERE id = ?");
     $query->bind_param('i', $id);
 } else {
-    $trunc = true;
+    $truncateString = true;
     if ($search) {
         $query = TPCrawler\Database::$db->prepare("SELECT * FROM magnets WHERE url LIKE ? OR description LIKE ? OR magnet LIKE ?");
         $query->bind_param('sss', $search, $search, $search);
     } else {
         $query = TPCrawler\Database::$db->prepare("SELECT * FROM magnets WHERE id BETWEEN ? AND ?");
-        $query->bind_param('ii', $lowerbound, $upperbound);
+        $query->bind_param('ii', $lowerBound, $upperBound);
     }
 }
 
 $query_count = TPCrawler\Database::$db->prepare("SELECT COUNT(id) FROM magnets");
-$totpages = 0;
+$totalPages = 0;
 $query_count->execute() or die(TPCrawler\Database::$db->error);
 $query_count->bind_result($count);
 
 while ($query_count->fetch()) {
-    $totpages = intval($count / 100 + 1);
-}
-
-if (($page > $totpages) || ($page < 0)) {
-    die('<p>No more pages. :(</p>');
+    $totalPages = intval($count / 100 + 1);
 }
 
 $torrent = new stdClass();
@@ -76,59 +70,93 @@ $query->execute() or die(TPCrawler\Database::$db->error);
 </head>
 <body>
 <div class="container">
+    <h1>Browse Magnets</h1>
     <div class="panel">
-        <div class="panel-group">
-            <h2>Browse Magnets</h2>
-            <p><a href="index.php">Home</a></p>
-            <form name="s" action="index.php" method="get">
-                <input title="Search" type="search" name="s"/>
-                <input type="submit" value="Search"/>
-            </form>
-        </div>
-        <div class="panel-group">
-            <table class="table">
-                <tr>
-                    <th>Source URL</th>
-                    <th>Magnet URL</th>
-                    <th>Description</th>
-                    <th>More Info</th>
-                </tr>
-                <?php while ($query->fetch()) { ?>
+        <div class="panel-body">
+            <div class="panel-group">
+                <ul class="nav nav-pills">
+                    <li role="presentation" class="active"><a href="/">Home</a></li>
+                </ul>
+            </div>
+            <div class="panel-group">
+                <form class="form-inline" name="s" action="/" method="get">
+                    <div class="form-group">
+                        <input class="form-control" title="Search" type="search" name="s"
+                               value="<?= ($search) ? $search : '' ?>"/>
+                        <input class="btn btn-default" type="submit" value="Search"/>
+                    </div>
+                </form>
+            </div>
+            <div class="panel-group">
+                <table class="table">
                     <tr>
-                        <td>
-                            <a href="<?= $torrent->url ?>">Source</a>
-                        </td>
-                        <td>
-                            <a href="<?= $torrent->magnet ?>">Download</a>
-                        </td>
-                        <td>
-                            <?= ($trunc == true) ? TPCrawler\Content::truncate($torrent->description,
-                                15) : nl2br($torrent->description) ?>
-                        </td>
-                        <td>
-                            <a href="index.php?id=<?= $torrent->id ?>">Info</a>
-                        </td>
+                        <th>Source URL</th>
+                        <th>Magnet URL</th>
+                        <th>Description</th>
+                        <th>More Info</th>
                     </tr>
-                <?php } ?>
-            </table>
-        </div>
-        <div class="panel-group">
+                    <?php while ($query->fetch()) { ?>
+                        <tr>
+                            <td>
+                                <a href="<?= $torrent->url ?>">Source</a>
+                            </td>
+                            <td>
+                                <a href="<?= $torrent->magnet ?>">Download</a>
+                            </td>
+                            <td>
+                                <?= ($truncateString == true) ? TPCrawler\Content::truncate($torrent->description,
+                                    15) : nl2br($torrent->description) ?>
+                            </td>
+                            <td>
+                                <a href="/?id=<?= $torrent->id ?>">Info</a>
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </table>
+            </div>
             <?php if (!($id || $search)) { ?>
-                You are at page: <?= $page ?> of <?= $totpages ?> <a
-                        href='index.php?pages=<?= $nextpage ?>'>Page: <?= $nextpage ?></a>
+                <div class="panel-group">
+                    <form class="form-inline" name="pages" action="/" method="get">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination">
+                                <li>
+                                    <a <?= $page > 1 ? 'href="/?pages=' . ($page - 1) . '"' : '' ?>
+                                            aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a>Current: <?= $page ?></a>
+                                </li>
+                                <li>
+                                    <a role="button" data-toggle="collapse" href="#pageToggle"
+                                       aria-expanded="false" aria-controls="pageToggle">
+                                        <span class="glyphicon glyphicon-search"></span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a <?= $page > $totalPages ? 'href="/?pages=' . ($page + 1) . '"' : '' ?>
+                                            aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                        <div class="collapse" id="pageToggle">
+                            <label for="pages">Go to page:</label>
+                            <input class="form-control" type="text" name="pages" id="pages"/>
+                            <input class="btn btn-default" type="submit" value="Go"/>
+                        </div>
+                    </form>
+                </div>
             <?php } ?>
-        </div>
-        <div class="panel-group">
-            <form name="pages" action="index.php" method="get">
-                Go to page: <input type="text" name="pages"/>
-                <input type="submit" value="Go"/>
-            </form>
-        </div>
-        <div class="panel-group">
             <hr/>
-            <p>Powered by <a href="http://junade.omgthatsepic.com/2012/05/05/tpcrawler/ ">TPCrawler</a>. Licensed under
-                the
-                terms of <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CreativeCommons BY-NC-SA</a></p>
+            <div class="panel-group">
+                <p>
+                    Licensed under the terms of <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CreativeCommons
+                        BY-NC-SA</a>
+                </p>
+            </div>
         </div>
     </div>
 </body>
