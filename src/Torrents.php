@@ -2,8 +2,15 @@
 
 namespace IcyApril\TPCrawler;
 
+/**
+ * Class Torrents
+ * @package IcyApril\TPCrawler
+ */
 class Torrents
 {
+    /**
+     * @return bool
+     */
     public static function init()
     {
         Database::connect();
@@ -21,6 +28,10 @@ class Torrents
         return true;
     }
 
+    /**
+     * @param string $url
+     * @return array|bool
+     */
     public static function getTorrents($url)
     {
         $urlList = [];
@@ -52,6 +63,10 @@ class Torrents
         return $urlList;
     }
 
+    /**
+     * @param array $torrent
+     * @return bool
+     */
     public static function addTorrent($torrent)
     {
         $stmt = Database::$db->prepare("INSERT IGNORE INTO magnets SET url = ?, magnet = ?, description = ?");
