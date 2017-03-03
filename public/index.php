@@ -75,7 +75,9 @@ $query->execute() or die(TPCrawler\Database::$db->error);
         <div class="panel-body">
             <div class="panel-group">
                 <ul class="nav nav-pills">
-                    <li role="presentation" class="active"><a href="/">Home</a></li>
+                    <li role="presentation" class="active">
+                        <a href="/">Home</a>
+                    </li>
                 </ul>
             </div>
             <div class="panel-group">
