@@ -8,6 +8,8 @@ namespace IcyApril\TPCrawler;
  */
 class App
 {
+    const TPB = 'https://thepiratebay.se';
+
     public static function init()
     {
         Database::connect();
