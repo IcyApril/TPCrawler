@@ -10,7 +10,9 @@ class Torrents
 
         $torrents = self::getTorrents(App::TPB . '/top/48hall');
 
-        if (!$torrents) return false;
+        if (!$torrents) {
+            return false;
+        }
 
         foreach ($torrents as $torrent) {
             self::addTorrent($torrent);
@@ -23,7 +25,9 @@ class Torrents
     {
         $urlList = [];
         $html = @file_get_contents($url);
-        if (!$html) return false;
+        if (!$html) {
+            return false;
+        }
         $dom = new \DOMDocument;
         @$dom->loadHTML($html);
 
